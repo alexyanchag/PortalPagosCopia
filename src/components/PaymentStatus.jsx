@@ -23,8 +23,9 @@ const PaymentStatus = () => {
   const [status, setStatus] = useState('loading');
   const [message, setMessage] = useState('');
   const [paymentDetails, setPaymentDetails] = useState(null);
-  const [requestInformation, setRequestInformation] = useState(null); 
+  const [requestInformation, setRequestInformation] = useState(null);
   const [facturaLinks, setFacturaLinks] = useState([]);
+  const [idsFacturas, setIdsFacturas] = useState([]);
   const notificadoRef = useRef(false);
 
   const requestId = localStorage.getItem('requestId') || searchParams.get('requestId');
@@ -45,7 +46,8 @@ const PaymentStatus = () => {
         const response = await axios.get(`${config[config.environment].API_BASE_URL}${config.endpoints.payButtonSessionStatus}/${requestId}/${idPasarela}`);
         const sessionData = response.data;
         var status = sessionData.reason;
-        const idsFacturas = sessionData.ids_facturas.split(',').map(id => parseInt(id, 10));
+        const idsFacturasArray = sessionData.ids_facturas.split(',').map(id => parseInt(id, 10));
+        setIdsFacturas(idsFacturasArray);
 
         if (sessionData) {
           setPaymentDetails(sessionData);
@@ -75,7 +77,7 @@ const PaymentStatus = () => {
                     if (status === 'APPROVED') {
                       const facturaResponse = await axios.post(
                         `${config[config.environment].API_DEUDAS_URL}${config.endpoints.pagoFacturas}`,
-                        idsFacturas,
+                        idsFacturasArray,
                         /*{
                           headers: {
                             'Accept': 'application/json',
@@ -99,7 +101,6 @@ const PaymentStatus = () => {
                         // Renderizar los enlaces de las facturas
                         // Asumiendo que tienes un estado para almacenar los enlaces de las facturas
                         setFacturaLinks(facturaLinks);
-                        // enviar correo //
 
                       }
                     }
@@ -142,7 +143,6 @@ const PaymentStatus = () => {
             case 'APPROVED':
               setStatus('success');
               setMessage('¡Pago Exitoso!');
-              enviarCorreoFacturas(idsFacturas, apiBaseUrlServicioIprus, EPenviarIprusCorreo);
               break;
             case 'REJECTED':
               setStatus('error');
@@ -199,6 +199,12 @@ const PaymentStatus = () => {
       }
     }
   };
+
+  useEffect(() => {
+    if (facturaLinks.length > 0 && idsFacturas.length > 0) {
+      enviarCorreoFacturas(idsFacturas, apiBaseUrlServicioIprus, EPenviarIprusCorreo);
+    }
+  }, [facturaLinks, idsFacturas, apiBaseUrlServicioIprus, EPenviarIprusCorreo]);
 
   return (
     <div style={{ padding: '24px', display: 'flex', justifyContent: 'center' }}>
