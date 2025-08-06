@@ -69,6 +69,10 @@ const authSlice = createSlice({
       state.token = null;
       state.error = null;
       state.formularios = [];
+      // Eliminar credenciales del almacenamiento local
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('auth');
+      }
     },
     clearErrors: (state) => {
       state.error = null;
@@ -102,6 +106,14 @@ const authSlice = createSlice({
         real se debe extraer el token de la respuesta o usar algún mecanismo de autenticación.
         */
         state.token = 'simulated-token'; // En producción, debes obtener el token real de la respuesta
+
+        // Guardar credenciales en el almacenamiento local
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(
+            'auth',
+            JSON.stringify({ user: state.user, token: state.token })
+          );
+        }
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.loading = false;
