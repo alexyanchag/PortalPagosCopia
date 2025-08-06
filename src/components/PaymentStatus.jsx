@@ -179,7 +179,7 @@ const PaymentStatus = () => {
   }, [requestId, idPasarela]);
 
   const handleReturn = () => {
-    navigate('/');
+    navigate('/tramites');
   };
 
   // Función auxiliar para enviar correo por cada factura

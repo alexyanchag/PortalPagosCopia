@@ -47,6 +47,7 @@ const Iprus = () => {
 
   // Constantes
   const IPRUS_FORM_ID = 86;
+  const IPRUS_FORM_AURORA_ID = 87;
 
   useEffect(() => {
     // Si no hay usuario o token, redirigir al dashboard
@@ -138,7 +139,8 @@ const Iprus = () => {
           "direccionnumero": "",
           "nombreedificio": "",
           "propietarios": [],
-          "linderos": []
+          "linderos": [],
+          "nombre_parroquia": "La Aurora (Satélite)"
         }
       )
 
@@ -149,94 +151,102 @@ const Iprus = () => {
   };
 
   const handleSolicitarCertificado = async (values) => {
-    setMesageLoading('Procesando solicitud...');
-    setLoadingCertificado(true);
-    
+    try {
+      setMesageLoading('Procesando solicitud...');
+      setLoadingCertificado(true);
 
-    const certificadoData = await axios.get(
-      `${apiConsultasDaule}${EPdetalleCertificado}/${idCertificadoIprus}`
-    );
+      const predio = predios.find(p => p.codigo_miduvi === values.codigo_miduvi);
 
-    const _totalValor = certificadoData.data.rubros.reduce((acc, rubro) => acc + rubro.valor, 0);
-    setTotalValor(_totalValor);
+      const form_id = predio.nombre_parroquia.toLocaleUpperCase() == 'LA AURORA (SATÉLITE)' ? IPRUS_FORM_AURORA_ID : IPRUS_FORM_ID;
 
-    setLoadingCertificado(false);
+      const certificadoData = await axios.get(
+        `${apiConsultasDaule}${EPdetalleCertificado}/${idCertificadoIprus}`
+      );
 
-    Swal.fire({
-      title: '¿Está seguro?',
-      html: `<strong>IMPORTANTE:</strong> ¿Está seguro de solicitar el certificado IPRUS? Este tiene un costo de <b>$${_totalValor}</b> y será enviado a su correo electrónico una vez se complete la solicitud.`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      //cancelButtonColor: '#d33',
-      confirmButtonText: 'Sí, solicitar',
-      cancelButtonText: 'Cancelar',
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        setLoadingCertificado(true);
+      const _totalValor = predio.nombre_parroquia.toLocaleUpperCase() == 'LA AURORA (SATÉLITE)' ? 30 : certificadoData.data.rubros.reduce((acc, rubro) => acc + rubro.valor, 0);
+      setTotalValor(_totalValor);
 
-        try {
+      setLoadingCertificado(false);
 
-          const formularioData = {
-            "idModulo": idModulo,
-            "idCliente": user.id,
-            "formularios": [
+      Swal.fire({
+        title: '¿Está seguro?',
+        html: `<strong>IMPORTANTE:</strong> ¿Está seguro de solicitar el certificado IPRUS? Este tiene un costo de <b>$${_totalValor}</b> y será enviado a su correo electrónico una vez se complete la solicitud.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        //cancelButtonColor: '#d33',
+        confirmButtonText: 'Sí, solicitar',
+        cancelButtonText: 'Cancelar',
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          setLoadingCertificado(true);
+
+          try {
+
+            const formularioData = {
+              "idModulo": idModulo,
+              "idCliente": user.id,
+              "formularios": [
+                {
+                  "idFormulario": form_id,
+                  "cantidad": 1,
+                  "asunto": "Solicitud de certificado IPRUS"
+                }
+              ]
+            }
+
+            const responseGenerarFormulario = await axios.post(
+              `${config[config.environment].API_EGOB_URL}${config.endpoints.venderFormularios}`,
+              formularioData,
               {
-                "idFormulario": IPRUS_FORM_ID,
-                "cantidad": 1,
-                "asunto": "Solicitud de certificado IPRUS"
+                headers: {
+                  Accesstoken: `${config[config.environment].ACCES_TOKEN_VENTA_FORMULARIO}`  // Reemplaza accessToken con tu variable/token real
+                }
               }
-            ]
+            );
+
+            // URL PARA USAR CON SERVERLESS
+            //const responseGenerarFormulario = await axios.post('/api/venderFormularios', formularioData);
+
+            const idFactura = responseGenerarFormulario.data[0].idFactura;
+
+            const responseGenerarIprus = await axios.post(
+              `${apiBaseUrlServicioIprus}${EPgenerarIprus}`,
+              {
+                clave_predial: values.codigo_miduvi,
+                idfactura: idFactura,
+                email: user.email,
+                nombres: user.nombre + ' ' + user.apellido,
+                identificacion: user.cedula
+              }
+            );
+
+            setFacturaIds([idFactura]);
+            setLoadingCertificado(false);
+
+            Swal.fire({
+              title: 'Certificado generado',
+              html: `<strong>IMPORTANTE:</strong> Para obtener el certificado debe proceder al pago. Este tiene un costo de $${totalValor} y será enviado a su correo electrónico una vez sea completado el pago.`,
+              icon: 'success',
+              showCancelButton: false,
+              confirmButtonColor: '#3085d6',
+              cancelButtonColor: '#d33',
+              confirmButtonText: 'Proceder al pago',
+            }).then(async (result) => {
+              //navigate('/')
+              setPaymentModalVisible(true)
+            })
+          } catch (error) {
+            console.log('ERROR MI DOG', error);
+          } finally {
+            setLoadingCertificado(false);
           }
-
-          const responseGenerarFormulario = await axios.post(
-            `${config[config.environment].API_EGOB_URL}${config.endpoints.venderFormularios}`,
-            formularioData,
-            {
-              headers: {
-                Accesstoken: `${config[config.environment].ACCES_TOKEN_VENTA_FORMULARIO}`  // Reemplaza accessToken con tu variable/token real
-              }
-            }
-          );
-
-          // URL PARA USAR CON SERVERLESS
-          //const responseGenerarFormulario = await axios.post('/api/venderFormularios', formularioData);
-
-          const idFactura = responseGenerarFormulario.data[0].idFactura;
-
-          const responseGenerarIprus = await axios.post(
-            `${apiBaseUrlServicioIprus}${EPgenerarIprus}`,
-            {
-              clave_predial: values.codigo_miduvi,
-              idfactura: idFactura,
-              email: user.email,
-              nombres: user.nombre + ' ' + user.apellido,
-              identificacion: user.cedula
-            }
-          );
-
-          setFacturaIds([idFactura]);
-          setLoadingCertificado(false);
-
-          Swal.fire({
-            title: 'Certificado generado',
-            html: `<strong>IMPORTANTE:</strong> Para obtener el certificado debe proceder al pago. Este tiene un costo de $${totalValor} y será enviado a su correo electrónico una vez sea completado el pago.`,
-            icon: 'success',
-            showCancelButton: false,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Proceder al pago',
-          }).then(async (result) => {
-            //navigate('/')
-            setPaymentModalVisible(true)
-          })
-        } catch (error) {
-          console.log('ERROR MI DOG', error);
-        } finally {
-          setLoadingCertificado(false);
         }
-      }
-    });
+      });
+    } catch (error) {
+      console.error('Error en el proceso:', error);
+      setLoadingCertificado(false);
+    }
   };
 
   const handlePaymentSubmit = async (paymentData) => {
@@ -272,9 +282,9 @@ const Iprus = () => {
   return (
     <div style={{ padding: '24px', maxWidth: '900px', margin: '0 auto' }}>
       {(loading || formularioLoading || loadingCertificado) && (
-          <div style={{ textAlign: 'center', padding: '40px' }}>
-            <Paragraph style={{ marginTop: '16px' }}>{mesageLoading}</Paragraph>
-          </div>
+        <div style={{ textAlign: 'center', padding: '40px' }}>
+          <Paragraph style={{ marginTop: '16px' }}>{mesageLoading}</Paragraph>
+        </div>
       )}
       <Spin spinning={loading || formularioLoading || loadingCertificado} size="large" delay={500}>
         {error && (
@@ -358,7 +368,8 @@ const Iprus = () => {
                           <div>
                             <span style={{ fontWeight: 600, color: '#1A69AF' }}>Código corto:</span> {item.id_municipio} &nbsp;|&nbsp;
                             <span style={{ fontWeight: 600, color: '#1A69AF' }}>Código Miduvi:</span> {item.codigo_miduvi} &nbsp;|&nbsp;
-                            <span style={{ fontWeight: 600, color: '#1A69AF' }}>Ciudadela:</span> {item.nombre_ciudadela}
+                            <span style={{ fontWeight: 600, color: '#1A69AF' }}>Ciudadela:</span> {item.nombre_ciudadela} &nbsp;|&nbsp;
+                            <span style={{ fontWeight: 600, color: '#1A69AF' }}>Parroquia:</span> {item.nombre_parroquia}
                           </div>
                         </Radio>
                       ))}
