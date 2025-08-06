@@ -1,0 +1,9 @@
+.header-color {
+  background-image: linear-gradient(180deg, #1A69AF 0%, #1F447B 100%);
+}
+
+.container-fluid.justify-content-center {
+  display: flex;
+  justify-content: center;
+  padding: 10px;
+}
