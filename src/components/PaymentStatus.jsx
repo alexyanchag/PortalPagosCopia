@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Card, Spin, Result, Button, Descriptions } from 'antd';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
@@ -25,6 +25,7 @@ const PaymentStatus = () => {
   const [paymentDetails, setPaymentDetails] = useState(null);
   const [requestInformation, setRequestInformation] = useState(null); 
   const [facturaLinks, setFacturaLinks] = useState([]);
+  const notificadoRef = useRef(false);
 
   const requestId = localStorage.getItem('requestId') || searchParams.get('requestId');
   const idPasarela = localStorage.getItem('idPasarela');
@@ -121,13 +122,6 @@ const PaymentStatus = () => {
               const response = await axios.get(`${config[config.environment].API_BASE_URL}/api/comprobantes/${requestId}`);
               const urlFacturas = response.data.map(item => item.urlFactura);
 
-
-              idsFacturas.map( async idfactura => {
-                const responseGenerarIprus = await axios.post(
-                  `${apiBaseUrlServicioIprus}${EPenviarIprusCorreo}${idfactura}`
-                );
-              })
-
               const facturaLinks = urlFacturas.map((url) => {
                 const facturaNumber = url.split('/').pop().split('.')[1];
                 return (
@@ -190,12 +184,18 @@ const PaymentStatus = () => {
 
   // Función auxiliar para enviar correo por cada factura
   const enviarCorreoFacturas = async (ids, apiBaseUrl, endpoint) => {
-    for (const id of ids) {
-      try {
-        await axios.post(`${apiBaseUrl}${endpoint}${id}`);
-      } catch (error) {
-        // Puedes loguear el error si es necesario
-        // console.error(`Error enviando correo para factura ${id}:`, error);
+    if (!notificadoRef.current) {
+      notificadoRef.current = true;
+      for (const id of ids) {
+        try {
+          const md5 = await axios.post(`${apiBaseUrl}${endpoint}${id}`);
+          //const url = `${apiBaseUrl}${config.endpoints.obtenerIprusIdfactura}${id}`;
+          //window.open(url, "_blank");
+
+          window.open(`/ver-iprus/${md5.data}`, "_blank");
+        } catch (error) {
+          // console.error(`Error enviando correo para factura ${id}:`, error);
+        }
       }
     }
   };

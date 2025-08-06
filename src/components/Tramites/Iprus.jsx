@@ -6,6 +6,7 @@ import { fetchFormularios } from '../../store/slices/authSlice';
 import axios from 'axios';
 import config from '../../config/config';
 import Swal from 'sweetalert2';
+import PaymentModal from '../PaymentModal';
 
 const { Title, Paragraph, Text } = Typography;
 const { Option } = Select;
@@ -30,6 +31,13 @@ const Iprus = () => {
   const [certificadoData, setCertificadoData] = useState(null);
   const [loadingCertificado, setLoadingCertificado] = useState(false);
   const [errorCertificado, setErrorCertificado] = useState(null);
+  const [mesageLoading, setMesageLoading] = useState('Cargando información...');
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
+  const [totalValor, setTotalValor] = useState(0);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [processUrl, setProcessUrl] = useState(null);
+  const [fechaPeticion, setFechaPeticion] = useState(null);
+  const [facturaIds, setFacturaIds] = useState([]);
 
   // Obtener datos de Redux
   const { user, token, loading, error, formularios, formularioLoading, formularioError } = useSelector(state => state.auth);
@@ -109,11 +117,31 @@ const Iprus = () => {
   const obtenerPredios = async () => {
     try {
       const response = await axios.get(
-        //`${apiBaseUrlServicioIprus}/predios-identificacion/${user.cedula}`
+        `${apiBaseUrlServicioIprus}/predios-identificacion/${user.cedula}`
         //`${apiBaseUrlServicioIprus}${EPprediosPorIdentificacion}/0900684598`
-        `${apiBaseUrlServicioIprus}${EPprediosPorIdentificacion}/13603632119`
+        //`${apiBaseUrlServicioIprus}${EPprediosPorIdentificacion}/13603632119`
       );
       console.log(response.data)
+      response.data.push(
+        {
+          "fid": 52756,
+          "codigo_miduvi": "09060241066002",
+          "id_municipio": "94009",
+          "area": "873610.67",
+          "areaescritura": "806730.00",
+          "codigo_ciudadela": 156,
+          "nombre_ciudadela": "CONDENCIA",
+          "ciudadela": "",
+          "caratula": "",
+          "calleprincipal": "",
+          "callesecundaria": "",
+          "direccionnumero": "",
+          "nombreedificio": "",
+          "propietarios": [],
+          "linderos": []
+        }
+      )
+
       setPredios(response.data);
     } catch (err) {
       console.error("Error al obtener los predios:", err);
@@ -121,18 +149,22 @@ const Iprus = () => {
   };
 
   const handleSolicitarCertificado = async (values) => {
+    setMesageLoading('Procesando solicitud...');
     setLoadingCertificado(true);
+    
+
     const certificadoData = await axios.get(
       `${apiConsultasDaule}${EPdetalleCertificado}/${idCertificadoIprus}`
     );
 
-    const totalValor = certificadoData.data.rubros.reduce((acc, rubro) => acc + rubro.valor, 0);
+    const _totalValor = certificadoData.data.rubros.reduce((acc, rubro) => acc + rubro.valor, 0);
+    setTotalValor(_totalValor);
 
     setLoadingCertificado(false);
 
     Swal.fire({
       title: '¿Está seguro?',
-      html: `<strong>IMPORTANTE:</strong> ¿Está seguro de solicitar el certificado IPRUS? Este tiene un costo de <b>$${totalValor}</b> y será enviado a su correo electrónico una vez se complete la solicitud.`,
+      html: `<strong>IMPORTANTE:</strong> ¿Está seguro de solicitar el certificado IPRUS? Este tiene un costo de <b>$${_totalValor}</b> y será enviado a su correo electrónico una vez se complete la solicitud.`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#3085d6',
@@ -144,7 +176,7 @@ const Iprus = () => {
         setLoadingCertificado(true);
 
         try {
-          
+
           const formularioData = {
             "idModulo": idModulo,
             "idCliente": user.id,
@@ -152,12 +184,11 @@ const Iprus = () => {
               {
                 "idFormulario": IPRUS_FORM_ID,
                 "cantidad": 1,
-                "asunto": "Solicitud de certificado IPRUS" 
+                "asunto": "Solicitud de certificado IPRUS"
               }
             ]
           }
-          
-          
+
           const responseGenerarFormulario = await axios.post(
             `${config[config.environment].API_EGOB_URL}${config.endpoints.venderFormularios}`,
             formularioData,
@@ -173,54 +204,6 @@ const Iprus = () => {
 
           const idFactura = responseGenerarFormulario.data[0].idFactura;
 
-          /*
-          // Lógica para crear la factura
-          const facturaData = {
-            idModulo: certificadoData.data.idModulo,
-            idPropietarioEmision: user.id, // Usamos el ID del usuario autenticado
-            valorBase: totalValor,
-            totalTarifa: totalValor,
-            fechaCreacion: new Date().toISOString().split('T')[0],
-            usuarioCreacion: user.id, // Usamos el ID del usuario autenticado
-            estado: 1,
-            facturaDetalle: certificadoData.data.rubros.map((rubro) => ({
-              cantidad: 1,
-              valorUnitario: rubro.valor,
-              estado: 1,
-              idRubro: rubro.idRubro,
-              fechaCreacion: new Date().toISOString().split('T')[0],
-            })),
-          };
-
-          const responseFactura = await axios.put(
-            `${apiConsultasDaule}${EPagregarFactura}`,
-            facturaData
-          );
-
-          const idFactura = responseFactura.data.id;
-
-          const ordenCertificadoDatabody = {
-            idFactura: responseFactura.data.id,
-            estado: 1,
-            nombres: user.nombre, // Usamos el nombre del cliente (Dinardap o base de datos)
-            apellidos: user.apellido, // Usamos el apellido del cliente
-            email: user.email, // Usamos el email del usuario autenticado
-            idModulo: certificadoData.data.idModulo,
-            certificado: certificadoData.data.descripcion,
-            tipo_certificado: certificadoData.data.tipo,
-            detalles: certificadoData.data.rubros.map((rubro) => ({
-              idRubro: rubro.idRubro,
-              rubro: rubro.descripcion,
-              valor: rubro.valor,
-            })),
-          };
-
-          const responseOrdenCertificado = await axios.post(
-            `${apiConsultasDaule}${EPagregarOrdenCertificado}`,
-            ordenCertificadoDatabody
-          );
-          */
-
           const responseGenerarIprus = await axios.post(
             `${apiBaseUrlServicioIprus}${EPgenerarIprus}`,
             {
@@ -232,6 +215,7 @@ const Iprus = () => {
             }
           );
 
+          setFacturaIds([idFactura]);
           setLoadingCertificado(false);
 
           Swal.fire({
@@ -243,7 +227,8 @@ const Iprus = () => {
             cancelButtonColor: '#d33',
             confirmButtonText: 'Proceder al pago',
           }).then(async (result) => {
-            navigate('/')
+            //navigate('/')
+            setPaymentModalVisible(true)
           })
         } catch (error) {
           console.log('ERROR MI DOG', error);
@@ -253,6 +238,32 @@ const Iprus = () => {
       }
     });
   };
+
+  const handlePaymentSubmit = async (paymentData) => {
+    setPaymentLoading(true);
+    try {
+      const response = await axios.post(`${config[config.environment].API_DEUDAS_URL}${config.endpoints.createSession}`, paymentData, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.data?.data?.processUrl) {
+        setProcessUrl(response.data.data.processUrl);
+        setFechaPeticion(response.data.data.status.date);
+      } else {
+        throw new Error('No se recibió la URL de pago');
+      }
+    } catch (error) {
+      console.error('Error al crear sesión de pago:', error);
+      setAlertInfo({
+        type: 'error',
+        message: 'Error al iniciar el proceso de pago. Por favor intente nuevamente.',
+      });
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
   //-------------------------------------------------------------------------------------------------------
   //-------------------------------------------------------------------------------------------------------
 
@@ -260,146 +271,165 @@ const Iprus = () => {
 
   return (
     <div style={{ padding: '24px', maxWidth: '900px', margin: '0 auto' }}>
-      {(loading || formularioLoading) && (
-        <div style={{ textAlign: 'center', padding: '40px' }}>
-          <Spin size="large" />
-          <Paragraph style={{ marginTop: '16px' }}>Cargando información...</Paragraph>
-        </div>
-      )}
-
-      {error && (
-        <Alert
-          message="Error de autenticación"
-          description={error}
-          type="error"
-          showIcon
-          style={{ marginBottom: '16px' }}
-        />
-      )}
-
-      {formularioError && (
-        <Alert
-          message="Error al cargar formularios"
-          description={formularioError}
-          type="error"
-          showIcon
-          style={{ marginBottom: '16px' }}
-        />
-      )}
-
-      {user && iprusFormulario && (
-        <Card
-          style={{
-            borderRadius: '8px',
-            boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
-            marginBottom: '24px'
-          }}
-          title={(
-            <div style={{ textAlign: 'center' }}>
-              <Title level={4} style={{ textAlign: 'center', margin: '20px', color: '#1A69AF' }}>
-                {iprusFormulario.descripcion}
-              </Title>
-            </div>
-          )}
-        >
-          <div style={{ marginBottom: '20px' }}>
-            <Alert
-              message="Información del solicitante"
-              description={
-                <div>
-                  <p><strong>Nombre:</strong> {user.nombre} {user.apellido}</p>
-                  <p><strong>Cédula:</strong> {user.cedula}</p>
-                  <p><strong>Email:</strong> {user.email}</p>
-                </div>
-              }
-              type="info"
-              showIcon
-            />
+      {(loading || formularioLoading || loadingCertificado) && (
+          <div style={{ textAlign: 'center', padding: '40px' }}>
+            <Paragraph style={{ marginTop: '16px' }}>{mesageLoading}</Paragraph>
           </div>
+      )}
+      <Spin spinning={loading || formularioLoading || loadingCertificado} size="large" delay={500}>
+        {error && (
+          <Alert
+            message="Error de autenticación"
+            description={error}
+            type="error"
+            showIcon
+            style={{ marginBottom: '16px' }}
+          />
+        )}
 
-          <Divider>Listado de predios registrados a su nombre</Divider>
+        {formularioError && (
+          <Alert
+            message="Error al cargar formularios"
+            description={formularioError}
+            type="error"
+            showIcon
+            style={{ marginBottom: '16px' }}
+          />
+        )}
 
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={handleSolicitarCertificado}
-            initialValues={{
-              tipoDocumento: 'cedula',
-              identificacion: user.cedula
+        {user && iprusFormulario && (
+          <Card
+            style={{
+              borderRadius: '8px',
+              boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+              marginBottom: '24px'
             }}
+            title={(
+              <div style={{ textAlign: 'center' }}>
+                <Title level={4} style={{ textAlign: 'center', margin: '20px', color: '#1A69AF' }}>
+                  {iprusFormulario.descripcion}
+                </Title>
+              </div>
+            )}
           >
-            <Row gutter={16}>
-              <Col span={24}>
-                <Form.Item
-                  name="codigo_miduvi"
-                  label="Escoja un predio"
-                  rules={[{ required: true, message: 'Seleccione un predio' }]}
-                >
-                  <Radio.Group
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 8,
-                    }}
-                  >
-                    {predios.map((item, index) => (
-                      <Radio key={index} value={item.codigo_miduvi}>
-                        <div>
-                          <span style={{ fontWeight: 600, color: '#1A69AF' }}>Código corto:</span> {item.id_municipio} &nbsp;|&nbsp;
-                          <span style={{ fontWeight: 600, color: '#1A69AF' }}>Código Miduvi:</span> {item.codigo_miduvi} &nbsp;|&nbsp;
-                          <span style={{ fontWeight: 600, color: '#1A69AF' }}>Ciudadela:</span> {item.nombre_ciudadela}
-                        </div>
-                      </Radio>
-                    ))}
-                  </Radio.Group>
-                </Form.Item>
-              </Col>
-            </Row>
-
-
-            <Form.Item style={{ marginTop: '16px', textAlign: 'right' }}>
-              <Button type="default" style={{ marginRight: 8 }} onClick={() => navigate('/tramites')}>
-                Cancelar
-              </Button>
-              <Button
-                type="primary"
-                htmlType="submit"
-                loading={loadingCertificado}
-                style={{ background: '#1A69AF' }}
-              >
-                Solicitar Certificado
-              </Button>
-            </Form.Item>
-          </Form>
-
-          {errorCertificado && (
-            <Alert
-              message="Error al procesar la solicitud"
-              description={errorCertificado}
-              type="error"
-              showIcon
-              style={{ marginTop: '16px' }}
-            />
-          )}
-
-          {certificadoData && (
-            <div style={{ marginTop: '24px' }}>
+            <div style={{ marginBottom: '20px' }}>
               <Alert
-                message="Solicitud Procesada"
+                message="Información del solicitante"
                 description={
-                  <p>
-                    Su solicitud ha sido procesada correctamente. Recibirá una notificación en su correo electrónico cuando el certificado esté listo.
-                    <br />
-                    <strong>Número de Trámite:</strong> {certificadoData.id || 'N/A'}
-                  </p>
+                  <div>
+                    <p><strong>Nombre:</strong> {user.nombre} {user.apellido}</p>
+                    <p><strong>Cédula:</strong> {user.cedula}</p>
+                    <p><strong>Email:</strong> {user.email}</p>
+                    <p><strong>Para actualizar datos:</strong> <a href='https://daule.gob.ec/actualizacion-de-datos' target='_blank'>Clic aquí</a></p>
+                  </div>
                 }
-                type="success"
+                type="info"
                 showIcon
               />
             </div>
-          )}
-        </Card>
-      )}
+
+            <Divider>Listado de predios registrados a su nombre</Divider>
+
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={handleSolicitarCertificado}
+              initialValues={{
+                tipoDocumento: 'cedula',
+                identificacion: user.cedula
+              }}
+            >
+              <Row gutter={16}>
+                <Col span={24}>
+                  <Form.Item
+                    name="codigo_miduvi"
+                    label="Escoja un predio"
+                    rules={[{ required: true, message: 'Seleccione un predio' }]}
+                  >
+                    <Radio.Group
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                      }}
+                    >
+                      {predios.map((item, index) => (
+                        <Radio key={index} value={item.codigo_miduvi}>
+                          <div>
+                            <span style={{ fontWeight: 600, color: '#1A69AF' }}>Código corto:</span> {item.id_municipio} &nbsp;|&nbsp;
+                            <span style={{ fontWeight: 600, color: '#1A69AF' }}>Código Miduvi:</span> {item.codigo_miduvi} &nbsp;|&nbsp;
+                            <span style={{ fontWeight: 600, color: '#1A69AF' }}>Ciudadela:</span> {item.nombre_ciudadela}
+                          </div>
+                        </Radio>
+                      ))}
+                    </Radio.Group>
+                  </Form.Item>
+                </Col>
+              </Row>
+
+
+              <Form.Item style={{ marginTop: '16px', textAlign: 'right' }}>
+                <Button type="default" style={{ marginRight: 8 }} onClick={() => navigate('/tramites')} disabled={loadingCertificado}>
+                  Cancelar
+                </Button>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  loading={loadingCertificado}
+                  style={{ background: '#1A69AF' }}
+                >
+                  Solicitar Certificado
+                </Button>
+              </Form.Item>
+            </Form>
+
+            {errorCertificado && (
+              <Alert
+                message="Error al procesar la solicitud"
+                description={errorCertificado}
+                type="error"
+                showIcon
+                style={{ marginTop: '16px' }}
+              />
+            )}
+
+            {certificadoData && (
+              <div style={{ marginTop: '24px' }}>
+                <Alert
+                  message="Solicitud Procesada"
+                  description={
+                    <p>
+                      Su solicitud ha sido procesada correctamente. Recibirá una notificación en su correo electrónico cuando el certificado esté listo.
+                      <br />
+                      <strong>Número de Trámite:</strong> {certificadoData.id || 'N/A'}
+                    </p>
+                  }
+                  type="success"
+                  showIcon
+                />
+              </div>
+            )}
+          </Card>
+        )}
+      </Spin>
+
+
+      <PaymentModal
+        visible={paymentModalVisible}
+        onCancel={() => {
+          setLoadingCertificado(true);
+          setPaymentModalVisible(false);
+          setProcessUrl(null);
+          setFechaPeticion(null);
+          navigate('/');
+        }}
+        onSubmit={handlePaymentSubmit}
+        totalAmount={totalValor}
+        loading={paymentLoading}
+        processUrl={processUrl}
+        facturaIds={facturaIds}
+        fechaPeticion={fechaPeticion}
+      />
     </div>
   );
 };
