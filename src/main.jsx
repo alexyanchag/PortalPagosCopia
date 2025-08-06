@@ -35,10 +35,16 @@ const Root = () => {
   );
 };
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <Provider store={store}>
-      <Root />
-    </Provider>
-  </React.StrictMode>,
+const root = ReactDOM.createRoot(document.getElementById('root'));
+
+const app = (
+  <Provider store={store}>
+    <Root />
+  </Provider>
 );
+
+if (import.meta.env.PROD) {
+  root.render(<React.StrictMode>{app}</React.StrictMode>);
+} else {
+  root.render(app);
+}
