@@ -11,7 +11,10 @@ import PaymentModal from '../PaymentModal';
 const { Title, Paragraph, Text } = Typography;
 const { Option } = Select;
 const apiBaseUrlServicioIprus = config[config.environment].API_IPRUS;
+const apiDeudasIprus = config[config.environment].API_DEUDAS_IPRUS;
+const EPiprusPendientesPago = config.endpoints.iprusPendientesPago;
 const EPprediosPorIdentificacion = config.endpoints.prediosPorIdentificacion;
+const EPdeudaPredio = config.endpoints.deudaPredio;
 const apiConsultasDaule = config[config.environment].API_BASE_URL;
 const EPdetalleCertificado = config.endpoints.detalleCertificado;
 const EPagregarFactura = config.endpoints.agregarFactura;
@@ -30,6 +33,7 @@ const Iprus = () => {
   // Estados locales
   const [certificadoData, setCertificadoData] = useState(null);
   const [loadingCertificado, setLoadingCertificado] = useState(false);
+  const [loadingPredios, setLoadingPredios] = useState(false);
   const [errorCertificado, setErrorCertificado] = useState(null);
   const [mesageLoading, setMesageLoading] = useState('Cargando información...');
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
@@ -38,6 +42,7 @@ const Iprus = () => {
   const [processUrl, setProcessUrl] = useState(null);
   const [fechaPeticion, setFechaPeticion] = useState(null);
   const [facturaIds, setFacturaIds] = useState([]);
+  const [noMostrar, setNoMostrar] = useState(false);
 
   // Obtener datos de Redux
   const { user, token, loading, error, formularios, formularioLoading, formularioError } = useSelector(state => state.auth);
@@ -71,54 +76,60 @@ const Iprus = () => {
   // Buscar el formulario IPRUS en la lista cuando se cargue
   const iprusFormulario = formularios.find(form => form.id === IPRUS_FORM_ID);
 
-  // Función para solicitar el certificado
-  const solicitarCertificado = async (values) => {
-    setLoadingCertificado(true);
-    setErrorCertificado(null);
-
-    try {
-      // Ejemplo de cómo sería la llamada a la API para solicitar el certificado
-      // Esta es una implementación simulada, deberás adaptarla según la documentación de la API real
-      //const apiUrl = `${config[config.environment].API_EGOB_URL}/it/rest/solicitudes/crear`;
-      const apiUrl = `/api/it/rest/solicitudes/crear`;
-
-      const payload = {
-        formularioId: IPRUS_FORM_ID,
-        predio: values.predio,
-        direccion: values.direccion,
-        // Otros campos según sea necesario
-      };
-
-      console.log(payload)
-
-      const response = await axios.post(apiUrl, payload, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      setCertificadoData(response.data);
-      messageApi.success('Certificado solicitado con éxito');
-    } catch (err) {
-      console.error('Error al solicitar certificado:', err);
-      setErrorCertificado(err.response?.data?.mensaje || 'Error al solicitar el certificado');
-      messageApi.error('No se pudo procesar la solicitud');
-    } finally {
-      setLoadingCertificado(false);
-    }
-  };
-
 
   //-------------------------------------------------------------------------------------------------------
   //-------------------------------------------------------------------------------------------------------
   useEffect(() => {
-    obtenerPredios();
+    const VerificarDeudasIprus = async () => {
+      try {
+        const response = await axios.post(`${apiBaseUrlServicioIprus}${EPiprusPendientesPago}`, {
+          cedula: user.cedula,
+          idFormularios: [IPRUS_FORM_ID, IPRUS_FORM_AURORA_ID]
+        });
+
+        let data = response.data;
+
+        console.log('Deudas IPRUS:', data);
+
+        if(data.length > 0) {
+          setNoMostrar(true);
+          Swal.fire({
+            title: 'Error',
+            text: 'Usted mantiene deuda pendiente con este Certficado. Por favor, proceda al pago primero.',
+            icon: 'error',
+            confirmButtonText: 'Aceptar'
+          }).then(() => {
+            navigate('/');
+          });
+
+          return;
+        }
+
+        obtenerPredios();
+
+      } catch (error) {
+        console.error('Error al obtener deudas IPRUS:', error);
+        Swal.fire({
+          title: 'Error',
+          text: 'No se pudo verificar si tiene deudas pendientes para este certificado. Por favor, intente más tarde.',
+          icon: 'error',
+          confirmButtonText: 'Aceptar'
+        }).then(() => {
+          navigate('/tramites');
+        });
+
+        return;
+      }
+    };
+
+    VerificarDeudasIprus();
   }, []);
 
   const obtenerPredios = async () => {
+    setLoadingPredios(true);
     try {
       const response = await axios.get(
-        `${apiBaseUrlServicioIprus}/predios-identificacion/${user.cedula}`
+        `${apiBaseUrlServicioIprus}${EPprediosPorIdentificacion}/${user.cedula}`
         //`${apiBaseUrlServicioIprus}${EPprediosPorIdentificacion}/0900684598`
         //`${apiBaseUrlServicioIprus}${EPprediosPorIdentificacion}/13603632119`
       );
@@ -147,6 +158,18 @@ const Iprus = () => {
       setPredios(response.data);
     } catch (err) {
       console.error("Error al obtener los predios:", err);
+    }finally {
+      setLoadingPredios(false);
+    }
+  };
+
+  const tieneDeudaPredio = async (id_municipio) => {
+    try {
+      const response = await axios.get(`${apiConsultasDaule}${EPdeudaPredio}/${id_municipio}/0`);
+      return response.data.length > 0;
+    } catch (error) {
+      console.error('Error al obtener la deuda del predio:', error);
+      return null;
     }
   };
 
@@ -156,6 +179,31 @@ const Iprus = () => {
       setLoadingCertificado(true);
 
       const predio = predios.find(p => p.codigo_miduvi === values.codigo_miduvi);
+      console.log('Predio seleccionado:', predio);
+      let _tieneDeudaPredio = await tieneDeudaPredio(predio.id_municipio);
+      if(_tieneDeudaPredio === null) {
+        Swal.fire({
+          title: 'Error',
+          text: 'No se pudo verificar la deuda del predio. Por favor, intente más tarde.',
+          icon: 'error',
+          confirmButtonText: 'Aceptar'
+        }).then(() => {
+          navigate('/tramites');
+        });
+
+        return;
+      } else if(_tieneDeudaPredio) {
+        Swal.fire({
+          title: 'Alerta',
+          text: 'El predio seleccionado tiene deudas pendientes. Por favor, proceda al pago primero.',
+          icon: 'warning',
+          confirmButtonText: 'Aceptar'
+        }).then(() => {
+          navigate('/');
+        });
+
+        return;
+      }
 
       const form_id = predio.nombre_parroquia.toLocaleUpperCase() == 'LA AURORA (SATÉLITE)' ? IPRUS_FORM_AURORA_ID : IPRUS_FORM_ID;
 
@@ -281,147 +329,152 @@ const Iprus = () => {
 
   return (
     <div style={{ padding: '24px', maxWidth: '900px', margin: '0 auto' }}>
-      {(loading || formularioLoading || loadingCertificado) && (
+      {(loading || formularioLoading || loadingCertificado || loadingPredios) && (
         <div style={{ textAlign: 'center', padding: '40px' }}>
           <Paragraph style={{ marginTop: '16px' }}>{mesageLoading}</Paragraph>
         </div>
       )}
-      <Spin spinning={loading || formularioLoading || loadingCertificado} size="large" delay={500}>
-        {error && (
-          <Alert
-            message="Error de autenticación"
-            description={error}
-            type="error"
-            showIcon
-            style={{ marginBottom: '16px' }}
-          />
-        )}
+      <Spin spinning={loading || formularioLoading || loadingCertificado || loadingPredios} size="large" delay={500}>
+        {
+          !loadingPredios && !noMostrar &&
+          <>
+            {error && (
+            <Alert
+              message="Error de autenticación"
+              description={error}
+              type="error"
+              showIcon
+              style={{ marginBottom: '16px' }}
+            />
+          )}
 
-        {formularioError && (
-          <Alert
-            message="Error al cargar formularios"
-            description={formularioError}
-            type="error"
-            showIcon
-            style={{ marginBottom: '16px' }}
-          />
-        )}
+          {formularioError && (
+            <Alert
+              message="Error al cargar formularios"
+              description={formularioError}
+              type="error"
+              showIcon
+              style={{ marginBottom: '16px' }}
+            />
+          )}
 
-        {user && iprusFormulario && (
-          <Card
-            style={{
-              borderRadius: '8px',
-              boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
-              marginBottom: '24px'
-            }}
-            title={(
-              <div style={{ textAlign: 'center' }}>
-                <Title level={4} style={{ textAlign: 'center', margin: '20px', color: '#1A69AF' }}>
-                  {iprusFormulario.descripcion}
-                </Title>
-              </div>
-            )}
-          >
-            <div style={{ marginBottom: '20px' }}>
-              <Alert
-                message="Información del solicitante"
-                description={
-                  <div>
-                    <p><strong>Nombre:</strong> {user.nombre} {user.apellido}</p>
-                    <p><strong>Cédula:</strong> {user.cedula}</p>
-                    <p><strong>Email:</strong> {user.email}</p>
-                    <p><strong>Para actualizar datos:</strong> <a href='https://daule.gob.ec/actualizacion-de-datos' target='_blank'>Clic aquí</a></p>
-                  </div>
-                }
-                type="info"
-                showIcon
-              />
-            </div>
-
-            <Divider>Listado de predios registrados a su nombre</Divider>
-
-            <Form
-              form={form}
-              layout="vertical"
-              onFinish={handleSolicitarCertificado}
-              initialValues={{
-                tipoDocumento: 'cedula',
-                identificacion: user.cedula
+          {user && iprusFormulario && (
+            <Card
+              style={{
+                borderRadius: '8px',
+                boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+                marginBottom: '24px'
               }}
+              title={(
+                <div style={{ textAlign: 'center' }}>
+                  <Title level={4} style={{ textAlign: 'center', margin: '20px', color: '#1A69AF' }}>
+                    {iprusFormulario.descripcion}
+                  </Title>
+                </div>
+              )}
             >
-              <Row gutter={16}>
-                <Col span={24}>
-                  <Form.Item
-                    name="codigo_miduvi"
-                    label="Escoja un predio"
-                    rules={[{ required: true, message: 'Seleccione un predio' }]}
-                  >
-                    <Radio.Group
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 8,
-                      }}
-                    >
-                      {predios.map((item, index) => (
-                        <Radio key={index} value={item.codigo_miduvi}>
-                          <div>
-                            <span style={{ fontWeight: 600, color: '#1A69AF' }}>Código corto:</span> {item.id_municipio} &nbsp;|&nbsp;
-                            <span style={{ fontWeight: 600, color: '#1A69AF' }}>Código Miduvi:</span> {item.codigo_miduvi} &nbsp;|&nbsp;
-                            <span style={{ fontWeight: 600, color: '#1A69AF' }}>Ciudadela:</span> {item.nombre_ciudadela} &nbsp;|&nbsp;
-                            <span style={{ fontWeight: 600, color: '#1A69AF' }}>Parroquia:</span> {item.nombre_parroquia}
-                          </div>
-                        </Radio>
-                      ))}
-                    </Radio.Group>
-                  </Form.Item>
-                </Col>
-              </Row>
-
-
-              <Form.Item style={{ marginTop: '16px', textAlign: 'right' }}>
-                <Button type="default" style={{ marginRight: 8 }} onClick={() => navigate('/tramites')} disabled={loadingCertificado}>
-                  Cancelar
-                </Button>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  loading={loadingCertificado}
-                  style={{ background: '#1A69AF' }}
-                >
-                  Solicitar Certificado
-                </Button>
-              </Form.Item>
-            </Form>
-
-            {errorCertificado && (
-              <Alert
-                message="Error al procesar la solicitud"
-                description={errorCertificado}
-                type="error"
-                showIcon
-                style={{ marginTop: '16px' }}
-              />
-            )}
-
-            {certificadoData && (
-              <div style={{ marginTop: '24px' }}>
+              <div style={{ marginBottom: '20px' }}>
                 <Alert
-                  message="Solicitud Procesada"
+                  message="Información del solicitante"
                   description={
-                    <p>
-                      Su solicitud ha sido procesada correctamente. Recibirá una notificación en su correo electrónico cuando el certificado esté listo.
-                      <br />
-                      <strong>Número de Trámite:</strong> {certificadoData.id || 'N/A'}
-                    </p>
+                    <div>
+                      <p><strong>Nombre:</strong> {user.nombre} {user.apellido}</p>
+                      <p><strong>Cédula:</strong> {user.cedula}</p>
+                      <p><strong>Email:</strong> {user.email}</p>
+                      <p><strong>Para actualizar datos:</strong> <a href='https://daule.gob.ec/actualizacion-de-datos' target='_blank'>Clic aquí</a></p>
+                    </div>
                   }
-                  type="success"
+                  type="info"
                   showIcon
                 />
               </div>
-            )}
-          </Card>
-        )}
+
+              <Divider>Listado de predios registrados a su nombre</Divider>
+
+              <Form
+                form={form}
+                layout="vertical"
+                onFinish={handleSolicitarCertificado}
+                initialValues={{
+                  tipoDocumento: 'cedula',
+                  identificacion: user.cedula
+                }}
+              >
+                <Row gutter={16}>
+                  <Col span={24}>
+                    <Form.Item
+                      name="codigo_miduvi"
+                      label="Escoja un predio"
+                      rules={[{ required: true, message: 'Seleccione un predio' }]}
+                    >
+                      <Radio.Group
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 8,
+                        }}
+                      >
+                        {predios.map((item, index) => (
+                          <Radio key={index} value={item.codigo_miduvi}>
+                            <div>
+                              <span style={{ fontWeight: 600, color: '#1A69AF' }}>Código corto:</span> {item.id_municipio} &nbsp;|&nbsp;
+                              <span style={{ fontWeight: 600, color: '#1A69AF' }}>Código Miduvi:</span> {item.codigo_miduvi} &nbsp;|&nbsp;
+                              <span style={{ fontWeight: 600, color: '#1A69AF' }}>Ciudadela:</span> {item.nombre_ciudadela} &nbsp;|&nbsp;
+                              <span style={{ fontWeight: 600, color: '#1A69AF' }}>Parroquia:</span> {item.nombre_parroquia}
+                            </div>
+                          </Radio>
+                        ))}
+                      </Radio.Group>
+                    </Form.Item>
+                  </Col>
+                </Row>
+
+
+                <Form.Item style={{ marginTop: '16px', textAlign: 'right' }}>
+                  <Button type="default" style={{ marginRight: 8 }} onClick={() => navigate('/tramites')} disabled={loadingCertificado}>
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    loading={loadingCertificado}
+                    style={{ background: '#1A69AF' }}
+                  >
+                    Solicitar Certificado
+                  </Button>
+                </Form.Item>
+              </Form>
+
+              {errorCertificado && (
+                <Alert
+                  message="Error al procesar la solicitud"
+                  description={errorCertificado}
+                  type="error"
+                  showIcon
+                  style={{ marginTop: '16px' }}
+                />
+              )}
+
+              {certificadoData && (
+                <div style={{ marginTop: '24px' }}>
+                  <Alert
+                    message="Solicitud Procesada"
+                    description={
+                      <p>
+                        Su solicitud ha sido procesada correctamente. Recibirá una notificación en su correo electrónico cuando el certificado esté listo.
+                        <br />
+                        <strong>Número de Trámite:</strong> {certificadoData.id || 'N/A'}
+                      </p>
+                    }
+                    type="success"
+                    showIcon
+                  />
+                </div>
+              )}
+            </Card>
+          )}
+          </>
+        }
       </Spin>
 
 

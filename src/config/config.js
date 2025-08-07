@@ -7,7 +7,8 @@ const config = {
         API_EGOB_URL: 'http://192.168.21.50:8085',
         ACCESS_TOKEN_EGOB_PAGO_FACTURA: 'TestTKPLACEtoPAY',
         ACCES_TOKEN_VENTA_FORMULARIO: 'Mun_Daule',
-        API_IPRUS: 'http://192.168.23.28:8080'
+        API_IPRUS: 'http://192.168.23.28:8080',
+        API_DEUDAS_IPRUS: 'http://192.168.21.52:3001'
     },
     PRO: {
         API_BASE_URL: 'https://consultas.daule.gob.ec:8443',
@@ -50,7 +51,13 @@ const config = {
         agregarOrdenCertificado: '/api/ordenCertificado/agregar',
 
         //Endpoint Vender Formulario
-        venderFormularios : '/it/rest/formularios/venderFormularios'
+        venderFormularios : '/it/rest/formularios/venderFormularios',
+
+        // Endpoint IPRUS pendientes de pago
+        iprusPendientesPago: '/api/iprus/verificar-pendientes',
+
+        // Endpoint Obtener deuda de predio
+        deudaPredio: '/api/deuda-predio'
     },
     // Servicios externos
     externalServices: {
