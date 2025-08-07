@@ -21,7 +21,6 @@ const EPagregarFactura = config.endpoints.agregarFactura;
 const EPagregarOrdenCertificado = config.endpoints.agregarOrdenCertificado;
 const EPgenerarIprus = config.endpoints.generarIprus;
 
-const idCertificadoIprus = 104;
 const idModulo = 21;
 
 const Iprus = () => {
@@ -95,7 +94,7 @@ const Iprus = () => {
           setNoMostrar(true);
           Swal.fire({
             title: 'Error',
-            text: 'Usted mantiene deuda pendiente con este Certficado. Por favor, proceda al pago primero.',
+            text: 'Usted mantiene deuda pendiente con este tipo de Certficado. Por favor, proceda al pago primero.',
             icon: 'error',
             confirmButtonText: 'Aceptar'
           }).then(() => {
@@ -134,6 +133,7 @@ const Iprus = () => {
         //`${apiBaseUrlServicioIprus}${EPprediosPorIdentificacion}/13603632119`
       );
       console.log(response.data)
+      /*
       response.data.push(
         {
           "fid": 52756,
@@ -151,9 +151,10 @@ const Iprus = () => {
           "nombreedificio": "",
           "propietarios": [],
           "linderos": [],
-          "nombre_parroquia": "La Aurora (Satélite)"
+          "nombre_parroquia": "xxLa Aurora (Satélite)"
         }
       )
+      */
 
       setPredios(response.data);
     } catch (err) {
@@ -181,6 +182,7 @@ const Iprus = () => {
       const predio = predios.find(p => p.codigo_miduvi === values.codigo_miduvi);
       console.log('Predio seleccionado:', predio);
       let _tieneDeudaPredio = await tieneDeudaPredio(predio.id_municipio);
+
       if(_tieneDeudaPredio === null) {
         Swal.fire({
           title: 'Error',
@@ -208,10 +210,10 @@ const Iprus = () => {
       const form_id = predio.nombre_parroquia.toLocaleUpperCase() == 'LA AURORA (SATÉLITE)' ? IPRUS_FORM_AURORA_ID : IPRUS_FORM_ID;
 
       const certificadoData = await axios.get(
-        `${apiConsultasDaule}${EPdetalleCertificado}/${idCertificadoIprus}`
+        `${apiConsultasDaule}${EPdetalleCertificado}/${form_id}`
       );
 
-      const _totalValor = predio.nombre_parroquia.toLocaleUpperCase() == 'LA AURORA (SATÉLITE)' ? 30 : certificadoData.data.rubros.reduce((acc, rubro) => acc + rubro.valor, 0);
+      const _totalValor = certificadoData.data.rubros.reduce((acc, rubro) => acc + rubro.valor, 0);
       setTotalValor(_totalValor);
 
       setLoadingCertificado(false);
