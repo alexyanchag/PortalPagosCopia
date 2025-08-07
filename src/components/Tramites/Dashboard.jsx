@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, Row, Col, Button, Modal, Form, Input, Typography, Spin, App } from 'antd';
-import { RightOutlined, AuditOutlined, DollarOutlined, UserSwitchOutlined, ReconciliationOutlined, FundViewOutlined } from '@ant-design/icons';
+import { RightOutlined, AuditOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
+import axios from 'axios';
+import Swal from 'sweetalert2';
 import { loginUser, clearErrors } from '../../store/slices/authSlice';
 import config from '../../config/config';
 
@@ -81,12 +83,39 @@ const Dashboard = () => {
     }
   }, [error, messageApi, dispatch]);
   
-  // Función de login usando Redux
-  const handleLogin = (values) => {
-    dispatch(loginUser({
-      cedula: values.identificacion,
-      password: values.password
-    }));
+  // Función de login usando Redux con validación de duplicados
+  const handleLogin = async (values) => {
+    try {
+      // 1) Verificar cliente
+      const clientesResponse = await axios.get(`${config[config.environment].API_BASE_URL}${config.endpoints.clientesInfo}/${values.identificacion}`);
+      const clientesData = clientesResponse.data;
+
+      // Validar si el cliente existe
+      if (!clientesData || clientesData.length === 0) {
+        throw new Error('Usuario no registrado');
+      }
+
+      // Validar si el cliente está duplicado
+      if (clientesData.length > 1) {
+        console.log('Cliente duplicado:', clientesData);
+        Swal.fire({
+          title: 'Error',
+          text: 'Usted mantiene deuda pendiente con este Certficado. Por favor, proceda al pago primero.',
+          icon: 'error',
+          confirmButtonText: 'Aceptar'
+        }).then(() => {
+          window.location.href = 'https://daule.gob.ec/actualizacion-de-datos';
+        });
+        return;
+      }
+
+      dispatch(loginUser({
+        cedula: values.identificacion,
+        password: values.password
+      }));
+    } catch (err) {
+      messageApi.error(err.message || 'Error al validar el usuario');
+    }
   };
 
   return (
@@ -112,8 +141,9 @@ const Dashboard = () => {
                   boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
                 }}
                 actions={[
-                  <Button 
-                    type="primary" 
+                  <Button
+                    key="action"
+                    type="primary"
                     icon={<RightOutlined />}
                     onClick={() => handleTramiteAction(tramite)}
                     style={{
