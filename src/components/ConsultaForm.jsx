@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useSelector } from 'react-redux';
 import {
   Card, Statistic, Divider, Form, Input, Button, Table, Typography, Alert, Row, Col, Grid, Popover, Radio, Space, message, Modal,
   Tooltip,
@@ -17,6 +18,8 @@ const { useBreakpoint } = Grid;
 function ConsultaForm() {
 
   const [form] = Form.useForm();
+  const { user } = useSelector(state => state.auth);
+  const [autoConsultDone, setAutoConsultDone] = useState(false);
   const [resultado, setResultado] = useState(null);
   const [totalDeuda, setTotalDeuda] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -54,6 +57,14 @@ function ConsultaForm() {
   useEffect(() => {
     generateCaptcha();
   }, []);
+
+  useEffect(() => {
+    if (user?.cedula && captchaAnswer !== 0 && !autoConsultDone) {
+      form.setFieldsValue({ cedula: user.cedula, captcha: captchaAnswer });
+      form.submit();
+      setAutoConsultDone(true);
+    }
+  }, [user, captchaAnswer, autoConsultDone, form]);
 
   useEffect(() => {
     let intervalId;
