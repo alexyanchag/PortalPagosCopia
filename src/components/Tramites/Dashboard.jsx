@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, Row, Col, Button, Modal, Form, Input, Typography, Spin, App } from 'antd';
+import { Card, Row, Col, Button, Modal, Form, Input, Typography, Spin, App, Divider, Alert } from 'antd';
 import { RightOutlined, AuditOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -19,12 +19,15 @@ const tramitesList = [
   }
 ];
 
+const actualizarCliente = config.resources.actualizacionCliente;
+
 const Dashboard = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [tramiteSeleccionado, setTramiteSeleccionado] = useState(null);
   const [form] = Form.useForm();
   const navigate = useNavigate();
   const { message: messageApi } = App.useApp();
+  const [pendiente, setPendiente] = useState(null);
   
   // Redux
   const dispatch = useDispatch();
@@ -32,7 +35,8 @@ const Dashboard = () => {
 
   const showModal = (tramite) => {
     setTramiteSeleccionado(tramite);
-    setIsModalVisible(true);
+    if(!pendiente)
+      setIsModalVisible(true);
   };
 
   const handleTramiteAction = (tramite) => {
@@ -67,11 +71,44 @@ const Dashboard = () => {
 
   // Efecto para manejar la redirección después de un login exitoso
   useEffect(() => {
-    if (user && token && tramiteSeleccionado?.id === 1) {
+    const verificarSeisionPago = async () => {
+      //VERIFICAR TRANSACCIONES PENDIENTES
+      //-------------------------------------------------------------------------------------------------------------------------------
+      //-------------------------------------------------------------------------------------------------------------------------------
+      const rPending = await axios.post(
+        `${config[config.environment].API_BASE_URL}${config.endpoints.payButtonPendientes}`,
+        { cedula: user.cedula },
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      const peticionPendiente = rPending.data;
+      //if (localStorage.getItem('requestId')==null) {
+       // console.log('Peticiones pendientes:', peticionPendiente.requestId);
+        //  console.log('idPasarela:', peticionPendiente.idPasarela);
+          localStorage.setItem('requestId', peticionPendiente.requestId);
+          localStorage.setItem('idPasarela', peticionPendiente.idPasarela);
+          localStorage.setItem('facturaIds', peticionPendiente.ids_facturas);
+      // } 
+
+      if (peticionPendiente) {
+        console.log(peticionPendiente)
+        setIsModalVisible(false);
+        setPendiente(peticionPendiente);
+        return;
+      }
+      //-------------------------------------------------------------------------------------------------------------------------------
+      //-------------------------------------------------------------------------------------------------------------------------------
       // Navegar al componente Iprus cuando el inicio de sesión es exitoso
       navigate('/tramites/iprus');
-      setIsModalVisible(false);
       messageApi.success(`Inicio de sesión exitoso. Accediendo a ${tramiteSeleccionado.title}`);
+    }
+
+    if (user && token && tramiteSeleccionado?.id === 1) {
+      verificarSeisionPago();
+      setIsModalVisible(false);
     }
   }, [user, token, navigate, tramiteSeleccionado, messageApi]);
 
@@ -100,11 +137,11 @@ const Dashboard = () => {
         console.log('Cliente duplicado:', clientesData);
         Swal.fire({
           title: 'Error',
-          text: 'Usted mantiene deuda pendiente con este Certficado. Por favor, proceda al pago primero.',
+          text: 'Por favor, para continuar primero debe actualizar sus datos.',
           icon: 'error',
-          confirmButtonText: 'Aceptar'
+          confirmButtonText: 'Actualizar datos'
         }).then(() => {
-          window.location.href = 'https://daule.gob.ec/actualizacion-de-datos';
+          window.location.href = actualizarCliente;
         });
         return;
       }
@@ -120,6 +157,23 @@ const Dashboard = () => {
 
   return (
     <>
+      {pendiente && (
+        <>
+          <Divider>Transacciones Pendientes</Divider>
+          <Alert
+            message="Tiene transacciones pendientes"
+            description={<p><b>Referencias:</b> {pendiente.referencia}</p>}
+            type="warning"
+            showIcon
+            action={
+              <Button type="primary" href={pendiente.process_url}>
+                Continuar con el pago
+              </Button>
+            }
+          />
+        </>
+      )}
+
       <div style={{ padding: '24px' }}>
         <Title level={2} style={{ textAlign: 'center', marginBottom: '20px', color: '#1A69AF' }}>
           Trámites Municipales en Línea

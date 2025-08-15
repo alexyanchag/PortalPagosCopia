@@ -351,7 +351,7 @@ function ConsultaForm() {
         localStorage.setItem('facturaIds', peticionPendiente.ids_facturas);
      // } 
 
-      if (false){//peticionPendiente) {
+      if (peticionPendiente) {
         setPendiente(peticionPendiente);
       } else {
         try {

@@ -21,7 +21,10 @@ const EPagregarFactura = config.endpoints.agregarFactura;
 const EPagregarOrdenCertificado = config.endpoints.agregarOrdenCertificado;
 const EPgenerarIprus = config.endpoints.generarIprus;
 
-const idModulo = 21;
+const idModulo = config.constantes.idModuloIprus;
+// Constantes
+const IPRUS_FORM_ID = config.constantes.IPRUS_FORM_ID;
+const IPRUS_FORM_AURORA_ID = config.constantes.IPRUS_FORM_AURORA_ID;
 
 const Iprus = () => {
   const [form] = Form.useForm();
@@ -49,14 +52,11 @@ const Iprus = () => {
   const [predios, setPredios] = useState([]);
 
 
-  // Constantes
-  const IPRUS_FORM_ID = 86;
-  const IPRUS_FORM_AURORA_ID = 87;
 
   useEffect(() => {
     // Si no hay usuario o token, redirigir al dashboard
     if (!user || !token) {
-      messageApi.error('Debe iniciar sesión para acceder a este servicio');
+      //messageApi.error('Debe iniciar sesión para acceder a este servicio');
       navigate('/tramites');
       return;
     }
@@ -133,6 +133,7 @@ const Iprus = () => {
         //`${apiBaseUrlServicioIprus}${EPprediosPorIdentificacion}/13603632119`
       );
       console.log(response.data)
+      
       /*
       response.data.push(
         {
@@ -155,6 +156,7 @@ const Iprus = () => {
         }
       )
       */
+      
 
       setPredios(response.data);
     } catch (err) {
@@ -201,19 +203,21 @@ const Iprus = () => {
           icon: 'warning',
           confirmButtonText: 'Aceptar'
         }).then(() => {
-          navigate('/');
+          //navigate('/');
         });
 
+        setLoadingCertificado(false);
         return;
       }
 
+      predio.nombre_parroquia = predio.nombre_parroquia ? predio.nombre_parroquia: '';
       const form_id = predio.nombre_parroquia.toLocaleUpperCase() == 'LA AURORA (SATÉLITE)' ? IPRUS_FORM_AURORA_ID : IPRUS_FORM_ID;
 
       const certificadoData = await axios.get(
         `${apiConsultasDaule}${EPdetalleCertificado}/${form_id}`
       );
 
-      const _totalValor = certificadoData.data.rubros.reduce((acc, rubro) => acc + rubro.valor, 0);
+      var _totalValor = certificadoData.data.rubros.reduce((acc, rubro) => acc + rubro.valor, 0);
       setTotalValor(_totalValor);
 
       setLoadingCertificado(false);
@@ -276,7 +280,7 @@ const Iprus = () => {
 
             Swal.fire({
               title: 'Certificado generado',
-              html: `<strong>IMPORTANTE:</strong> Para obtener el certificado debe proceder al pago. Este tiene un costo de $${totalValor} y será enviado a su correo electrónico una vez sea completado el pago.`,
+              html: `<strong>IMPORTANTE:</strong> Para obtener el certificado debe proceder al pago. Este tiene un costo de $${_totalValor} y será enviado a su correo electrónico una vez sea completado el pago.`,
               icon: 'success',
               showCancelButton: false,
               confirmButtonColor: '#3085d6',
@@ -403,48 +407,63 @@ const Iprus = () => {
                 }}
               >
                 <Row gutter={16}>
-                  <Col span={24}>
-                    <Form.Item
-                      name="codigo_miduvi"
-                      label="Escoja un predio"
-                      rules={[{ required: true, message: 'Seleccione un predio' }]}
-                    >
-                      <Radio.Group
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: 8,
-                        }}
-                      >
-                        {predios.map((item, index) => (
-                          <Radio key={index} value={item.codigo_miduvi}>
-                            <div>
-                              <span style={{ fontWeight: 600, color: '#1A69AF' }}>Código corto:</span> {item.id_municipio} &nbsp;|&nbsp;
-                              <span style={{ fontWeight: 600, color: '#1A69AF' }}>Código Miduvi:</span> {item.codigo_miduvi} &nbsp;|&nbsp;
-                              <span style={{ fontWeight: 600, color: '#1A69AF' }}>Ciudadela:</span> {item.nombre_ciudadela} &nbsp;|&nbsp;
-                              <span style={{ fontWeight: 600, color: '#1A69AF' }}>Parroquia:</span> {item.nombre_parroquia}
-                            </div>
-                          </Radio>
-                        ))}
-                      </Radio.Group>
-                    </Form.Item>
-                  </Col>
+                  {
+                    predios.length === 0 && (
+                      <i>Sin registros de predios disponible</i>
+                    )
+                  }
+
+                  {
+                    predios.length > 0 && (
+                      <Col span={24}>
+                        <Form.Item
+                          name="codigo_miduvi"
+                          label="Escoja un predio"
+                          rules={[{ required: true, message: 'Seleccione un predio' }]}
+                        >
+                          <Radio.Group
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 8,
+                            }}
+                          >
+                            {predios.map((item, index) => (
+                              <Radio key={index} value={item.codigo_miduvi}>
+                                <div>
+                                  <span style={{ fontWeight: 600, color: '#1A69AF' }}>Código corto:</span> {item.id_municipio} &nbsp;|&nbsp;
+                                  <span style={{ fontWeight: 600, color: '#1A69AF' }}>Código Miduvi:</span> {item.codigo_miduvi} &nbsp;|&nbsp;
+                                  <span style={{ fontWeight: 600, color: '#1A69AF' }}>Ciudadela:</span> {item.nombre_ciudadela} &nbsp;|&nbsp;
+                                  <span style={{ fontWeight: 600, color: '#1A69AF' }}>Parroquia:</span> {item.nombre_parroquia}
+                                </div>
+                              </Radio>
+                            ))}
+                          </Radio.Group>
+                        </Form.Item>
+                      </Col>
+                    )
+                  }
+                  
                 </Row>
 
-
-                <Form.Item style={{ marginTop: '16px', textAlign: 'right' }}>
-                  <Button type="default" style={{ marginRight: 8 }} onClick={() => navigate('/tramites')} disabled={loadingCertificado}>
-                    Cancelar
-                  </Button>
-                  <Button
-                    type="primary"
-                    htmlType="submit"
-                    loading={loadingCertificado}
-                    style={{ background: '#1A69AF' }}
-                  >
-                    Solicitar Certificado
-                  </Button>
-                </Form.Item>
+                
+                {
+                  predios.length > 0 && (
+                    <Form.Item style={{ marginTop: '16px', textAlign: 'right' }}>
+                      <Button type="default" style={{ marginRight: 8 }} onClick={() => navigate('/tramites')} disabled={loadingCertificado}>
+                        Cancelar
+                      </Button>
+                      <Button
+                        type="primary"
+                        htmlType="submit"
+                        loading={loadingCertificado}
+                        style={{ background: '#1A69AF' }}
+                      >
+                        Solicitar Certificado
+                      </Button>
+                    </Form.Item>
+                  )
+                }
               </Form>
 
               {errorCertificado && (

@@ -71,10 +71,16 @@ const config = {
         franquicias: 'https://www.daule.gob.ec/wp-content/uploads/2025/01/franquicias.jpg',
         privacyPolicy: 'https://www.daule.gob.ec/wp-content/uploads/2025/01/TERMINOS-Y-CONDICIONES-PARA-LA-UTILIZACION-DEL-CANAL-BOTON-DE-PAGOS-GAD-MUNICIPAL-DEL-CANTON-DAULE-1.pdf',
         actualizacionDatos: 'https://daule.gob.ec/actualizacion-de-datos/',
+        actualizacionCliente: 'https://consultas.daule.gob.ec/tramites-linea/actualizar-cliente',
         Politic: 'https://www.daule.gob.ec/wp-content/uploads/2025/01/Politica-de-tratamiento-de-datos-personales-del-GAD-Municipal-de-Daule.pdf',
         logoPlace: 'https://static.placetopay.com/placetopay-logo-square.svg',
         bannerRemision: 'https://www.daule.gob.ec/wp-content/uploads/2025/04/Banner-Remision.webp',
 
+    },
+    constantes: {
+        IPRUS_FORM_ID: 86,
+        IPRUS_FORM_AURORA_ID: 87,
+        idModuloIprus: 21
     },
     environment: 'DEV' // Cambia a 'PRO' en producción
 };
