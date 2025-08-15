@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import config from '../../config/config';
+import { clearPaymentSession } from '../../utils/clearPaymentSession';
 
 // Acción asincrónica para iniciar sesión
 export const loginUser = createAsyncThunk(
@@ -71,6 +72,7 @@ const authSlice = createSlice({
       state.formularios = [];
       // Eliminar credenciales del almacenamiento local
       if (typeof window !== 'undefined') {
+        clearPaymentSession();
         localStorage.removeItem('auth');
       }
     },
