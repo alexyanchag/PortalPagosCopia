@@ -3,6 +3,7 @@ import { Modal, Form, Input, Button, Alert, message, Checkbox, Radio } from 'ant
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import config from '../config/config';
+import { clearPaymentSession } from '../utils/clearPaymentSession';
 
 const generarCodigoVerificacion = () => {
   return Math.floor(10000 + Math.random() * 90000).toString();
@@ -38,6 +39,11 @@ const PaymentModal = ({
     correoVerificado: false,
     enviandoCodigo: false,
   });
+
+  const handleCancel = () => {
+    clearPaymentSession();
+    onCancel();
+  };
 
   // Estado para controlar si el botón de pago ha sido presionado
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -383,15 +389,15 @@ const PaymentModal = ({
       <Modal
         title="Datos para el Pago"
         open={visible}
-        onCancel={onCancel}
+        onCancel={handleCancel}
         footer={[
-          <Button key="back" onClick={onCancel}>
+          <Button key="back" onClick={handleCancel}>
             Cancelar
           </Button>,
-          <Button 
-            key="submit" 
-            type="primary" 
-            loading={loading || isSubmitting} 
+          <Button
+            key="submit"
+            type="primary"
+            loading={loading || isSubmitting}
             onClick={handleSubmit}
             disabled={isSubmitting}
           >
