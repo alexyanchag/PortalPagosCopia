@@ -7,6 +7,7 @@ import axios from 'axios';
 import config from '../../config/config';
 import Swal from 'sweetalert2';
 import PaymentModal from '../PaymentModal';
+import { clearPaymentSession } from '../../utils/clearPaymentSession';
 
 const { Title, Paragraph, Text } = Typography;
 const { Option } = Select;
@@ -502,6 +503,7 @@ const Iprus = () => {
       <PaymentModal
         visible={paymentModalVisible}
         onCancel={() => {
+          clearPaymentSession();
           setLoadingCertificado(true);
           setPaymentModalVisible(false);
           setProcessUrl(null);

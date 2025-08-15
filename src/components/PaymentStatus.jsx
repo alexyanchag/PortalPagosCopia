@@ -3,6 +3,7 @@ import { Card, Spin, Result, Button, Descriptions } from 'antd';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import config from '../config/config';
+import { clearPaymentSession } from '../utils/clearPaymentSession';
 
 const translateReason = (reason) => {
   switch (reason) {
@@ -157,13 +158,8 @@ const PaymentStatus = () => {
               setMessage('Estado de pago en proceso');
           }
 
-          // Limpiar localStorage //
-          /* localStorage.removeItem('sessionId');
-          localStorage.removeItem('requestId');
-          localStorage.removeItem('facturaIds');
-          localStorage.removeItem('timeReference');
-          localStorage.removeItem('cedulaConsultada');
-          localStorage.removeItem('idPasarela'); */
+          // Limpiar almacenamiento relacionado con el pago
+          clearPaymentSession();
         } else {
           setStatus('error');
           setMessage('No se encontraron detalles de pago.');

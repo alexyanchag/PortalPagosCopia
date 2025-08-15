@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons';
 import PaymentModal from './PaymentModal';
 import config from '../config/config';
+import { clearPaymentSession } from '../utils/clearPaymentSession';
 
 const { Title } = Typography;
 const { useBreakpoint } = Grid;
@@ -457,8 +458,8 @@ function ConsultaForm() {
     generateCaptcha();
     setCoactivaIds([]);
 
-    // (Opcional) limpiar la cédula guardada
-    localStorage.removeItem('cedulaConsultada');
+    // Limpiar la información de sesión de pago
+    clearPaymentSession();
   };
 
   const handlePaymentSubmit = async (paymentData) => {
@@ -773,6 +774,7 @@ function ConsultaForm() {
       <PaymentModal
         visible={paymentModalVisible}
         onCancel={() => {
+          clearPaymentSession();
           setPaymentModalVisible(false);
           setProcessUrl(null);
           //setFacturaIds([]);

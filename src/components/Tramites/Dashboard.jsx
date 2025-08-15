@@ -7,6 +7,7 @@ import axios from 'axios';
 import Swal from 'sweetalert2';
 import { loginUser, clearErrors } from '../../store/slices/authSlice';
 import config from '../../config/config';
+import { clearPaymentSession } from '../../utils/clearPaymentSession';
 
 const { Title, Paragraph } = Typography;
 
@@ -72,6 +73,7 @@ const Dashboard = () => {
   // Efecto para manejar la redirección después de un login exitoso
   useEffect(() => {
     const verificarSeisionPago = async () => {
+      clearPaymentSession();
       //VERIFICAR TRANSACCIONES PENDIENTES
       //-------------------------------------------------------------------------------------------------------------------------------
       //-------------------------------------------------------------------------------------------------------------------------------
