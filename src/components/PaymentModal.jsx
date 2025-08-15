@@ -3,7 +3,7 @@ import { Modal, Form, Input, Button, Alert, message, Checkbox, Radio } from 'ant
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import config from '../config/config';
-import { clearPaymentSession } from '../utils/clearPaymentSession';
+import clearPaymentSession from '../utils/clearPaymentSession';
 
 const generarCodigoVerificacion = () => {
   return Math.floor(10000 + Math.random() * 90000).toString();
@@ -251,8 +251,9 @@ const PaymentModal = ({
       onSubmit(paymentData);
     } catch (error) {
       console.error('Validation failed:', error);
-    // En caso de error, permitir reintentar
-    setIsSubmitting(false);
+      clearPaymentSession();
+      // En caso de error, permitir reintentar
+      setIsSubmitting(false);
     }
   };
 
