@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, Row, Col, Button, Modal, Form, Input, Typography, Spin, App, Divider, Alert } from 'antd';
+import { Card, Row, Col, Button, Modal, Form, Input, Typography, Spin, App } from 'antd';
 import { RightOutlined, AuditOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -29,6 +29,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { message: messageApi } = App.useApp();
   const [pendiente, setPendiente] = useState(null);
+  const [continuingPayment, setContinuingPayment] = useState(false);
   
   // Redux
   const dispatch = useDispatch();
@@ -68,6 +69,16 @@ const Dashboard = () => {
   const handleCancel = () => {
     form.resetFields();
     setIsModalVisible(false);
+  };
+
+  const handlePendingClose = () => {
+    clearPaymentSession();
+    setPendiente(null);
+  };
+
+  const handlePendingContinue = () => {
+    setContinuingPayment(true);
+    window.location.href = pendiente.process_url;
   };
 
   // Efecto para manejar la redirección después de un login exitoso
@@ -121,6 +132,14 @@ const Dashboard = () => {
       dispatch(clearErrors());
     }
   }, [error, messageApi, dispatch]);
+
+  useEffect(() => {
+    return () => {
+      if (pendiente && !continuingPayment) {
+        clearPaymentSession();
+      }
+    };
+  }, [pendiente, continuingPayment]);
   
   // Función de login usando Redux con validación de duplicados
   const handleLogin = async (values) => {
@@ -159,22 +178,21 @@ const Dashboard = () => {
 
   return (
     <>
-      {pendiente && (
-        <>
-          <Divider>Transacciones Pendientes</Divider>
-          <Alert
-            message="Tiene transacciones pendientes"
-            description={<p><b>Referencias:</b> {pendiente.referencia}</p>}
-            type="warning"
-            showIcon
-            action={
-              <Button type="primary" href={pendiente.process_url}>
-                Continuar con el pago
-              </Button>
-            }
-          />
-        </>
-      )}
+      <Modal
+        title="Transacciones Pendientes"
+        open={!!pendiente}
+        onCancel={handlePendingClose}
+        footer={[
+          <Button key="cancel" onClick={handlePendingClose}>
+            Cerrar
+          </Button>,
+          <Button key="continue" type="primary" onClick={handlePendingContinue}>
+            Continuar con el pago
+          </Button>
+        ]}
+      >
+        <p><b>Referencias:</b> {pendiente?.referencia}</p>
+      </Modal>
 
       <div style={{ padding: '24px' }}>
         <Title level={2} style={{ textAlign: 'center', marginBottom: '20px', color: '#1A69AF' }}>
