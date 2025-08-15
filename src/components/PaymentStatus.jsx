@@ -158,12 +158,13 @@ const PaymentStatus = () => {
               setMessage('Estado de pago en proceso');
           }
 
-          // Limpiar almacenamiento relacionado con el pago
-          clearPaymentSession();
         } else {
           setStatus('error');
           setMessage('No se encontraron detalles de pago.');
         }
+
+        // Limpiar almacenamiento relacionado con el pago
+        clearPaymentSession();
       } catch (error) {
         console.error('Error al verificar estado:', error);
         setStatus('error');
