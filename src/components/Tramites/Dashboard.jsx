@@ -98,13 +98,13 @@ const Dashboard = () => {
         }
       );
       const peticionPendiente = rPending.data;
-      //if (localStorage.getItem('requestId')==null) {
-       // console.log('Peticiones pendientes:', peticionPendiente.requestId);
-        //  console.log('idPasarela:', peticionPendiente.idPasarela);
-          localStorage.setItem('requestId', peticionPendiente.requestId);
-          localStorage.setItem('idPasarela', peticionPendiente.idPasarela);
-          localStorage.setItem('facturaIds', peticionPendiente.ids_facturas);
-      // } 
+      if (localStorage.getItem('requestId')==null) {
+        //console.log('Peticiones pendientes:', peticionPendiente.requestId);
+        //console.log('idPasarela:', peticionPendiente.idPasarela);
+        localStorage.setItem('requestId', peticionPendiente.requestId);
+        localStorage.setItem('idPasarela', peticionPendiente.idPasarela);
+        localStorage.setItem('facturaIds', peticionPendiente.ids_facturas);
+      } 
 
       if (peticionPendiente) {
         console.log(peticionPendiente)

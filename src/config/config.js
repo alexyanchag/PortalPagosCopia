@@ -41,7 +41,7 @@ const config = {
 
         // Endpoints de Servicio IPRUS
         prediosPorIdentificacion: '/predios-identificacion',
-        generarIprus: '/generar-pdf',
+        generarIprus: '/registrar-iprus',
         enviarIprusCorreo: '/enviar-iprus-correo/',
         obtenerIprus: '/archivo/',
 

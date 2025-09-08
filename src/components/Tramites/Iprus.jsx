@@ -233,6 +233,7 @@ const Iprus = () => {
         confirmButtonText: 'Sí, solicitar',
         cancelButtonText: 'Cancelar',
       }).then(async (result) => {
+        console.log("RESULTADO DE SWEET ALERT confirmado", result);
         if (result.isConfirmed) {
           setLoadingCertificado(true);
 
@@ -260,6 +261,8 @@ const Iprus = () => {
               }
             );
 
+            
+            console.log("VEMDER FORMULARIOS OK")
             // URL PARA USAR CON SERVERLESS
             //const responseGenerarFormulario = await axios.post('/api/venderFormularios', formularioData);
 
@@ -275,10 +278,11 @@ const Iprus = () => {
                 identificacion: user.cedula
               }
             );
-
+            console.log("DESPUES DE RESPUESTA")
             setFacturaIds([idFactura]);
             setLoadingCertificado(false);
 
+            console.log("DESPUES DE EFFECTO")
             Swal.fire({
               title: 'Certificado generado',
               html: `<strong>IMPORTANTE:</strong> Para obtener el certificado debe proceder al pago. Este tiene un costo de $${_totalValor} y será enviado a su correo electrónico una vez sea completado el pago.`,
@@ -291,8 +295,24 @@ const Iprus = () => {
               //navigate('/')
               setPaymentModalVisible(true)
             })
+
           } catch (error) {
-            console.log('ERROR MI DOG', error);
+              console.error('Error al generar IPRUS:', error);
+
+              const detail = error?.response?.data?.detail;
+              let msg = 'Ocurrió un error. Intenta nuevamente.';
+
+              if (typeof detail === 'string') {
+                msg = detail;
+              } else if (Array.isArray(detail)) {
+                // Errores de validación: [{loc, msg, type}, ...]
+                const parts = detail.map(e => e?.msg || e?.message || JSON.stringify(e)).filter(Boolean);
+                if (parts.length) msg = parts.join('\n');
+              } else if (detail && typeof detail === 'object') {
+                msg = detail.msg || detail.message || JSON.stringify(detail);
+              }
+
+              Swal.fire({ title: 'Error', text: msg, icon: 'error', confirmButtonText: 'Aceptar' });
           } finally {
             setLoadingCertificado(false);
           }
